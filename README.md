@@ -23,7 +23,7 @@ Pseudo-spherical loss with p = 2 provides a clear and typical case where the met
 
 This example illustrates that MC matches direct optimization only in the cross-entropy case, while for other proper losses MC can converge to a biased fixed point.
 
-### EXperiment Results table
+### EXperiment Results table（More experimental figures are available in the `Experiment Results` directory on GitHub.）
 
 Fill in the numbers below with your runs (recommended: report mean ± std over several random seeds).
 
