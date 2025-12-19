@@ -41,11 +41,9 @@ Pseudo-Spherical (p=2): MC
 Pseudo-Spherical (p=2): FWD
 ![FWD pseudo-spherical p=2](Experiment%20Results/minst/fwd.ps2.png)
 
-**Figure 2.** Cross Entropy: MC vs FWD vs UpperBound
+**Figure 2.** Cross Entropy: MC vs FWD
 
 Cross Entropy: MC
 ![MC CE](Experiment%20Results/minst/mc.ce.png)
 Cross Entropy: FWD
 ![FWD CE](Experiment%20Results/minst/fwd.ce.png)
-Cross Entropy: Upper Bound
-![UpperBound CE](Experiment%20Results/minst/upp.ce.png)
