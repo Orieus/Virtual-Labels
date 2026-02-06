@@ -101,15 +101,19 @@ def train_and_evaluate(
             optimizer.zero_grad()
             outputs = model(inputs)
 
+            # Compute loss. PiCO need the pseudolabels too.
             if pseudolabel_model == 'PiCO':
                 loss = loss_fn.forward(outputs, wl, cl)
             else:
                 loss = loss_fn.forward(outputs, wl) 
+
+            # Model update.
             loss.backward()
             optimizer.step()
 
             # Update batch's loss and accuracy
             running_loss += loss.item()
+            # Convert outputs and targets to class indices for acc. calculation
             _, preds = torch.max(outputs, dim=1)
             _, true = torch.max(targets, dim=1)
             correct_train += torch.sum(preds == true)
@@ -134,6 +138,7 @@ def train_and_evaluate(
                     trainloader.dataset.tensors[
                         pseudo_label_loc][indices, preds] += (1 - phi)
 
+        # Compute epoch's loss and accuracy
         train_acc = correct_train.double() / len(trainloader.dataset)
         train_loss = running_loss / len(trainloader.dataset)
 
@@ -172,8 +177,8 @@ def train_and_evaluate(
         actual_lr = optimizer.param_groups[0]['lr']
         
         epoch_time = time.time() - start_time
-        
-        # Store results for this epoch
+
+        # Add summary of epoch results to the list
         epoch_data = {
             'epoch': epoch + 1,
             'pseudolabel_model': pseudolabel_model,
