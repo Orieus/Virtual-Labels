@@ -129,38 +129,61 @@ class MarginalChainProperLoss(nn.Module):
             return loss_per_sample
 
 
-# ---------- Forward (plug-in) marginal-chain objective ----------
-class ForwardProperLoss(nn.Module):
-    def __init__(self, F_mat, loss_code: str, reduction: str = "mean", eps: float = 1e-28):
+# ---------- Importance Reweighting ----------
+class IRLoss(nn.Module):
+    """
+    Importance reweighting loss
+    """
+
+    def __init__(self, M, loss_code: str, reduction: str = "mean", eps: float = 1e-28):
         super().__init__()
         self.logsoftmax = nn.LogSoftmax(dim=1)
-        self.F = torch.as_tensor(F_mat, dtype=torch.float32)
+        self.M = torch.as_tensor(M, dtype=torch.float32)
         self.loss_code = loss_code
         self.reduction = reduction
         self.eps = eps
 
     def forward(self, logits: torch.Tensor, z: torch.Tensor) -> torch.Tensor:
-        z = z.long()
-        logp = self.logsoftmax(logits)
-        p = logp.exp()                     # (B, C)
 
-        F = self.F.to(logits.device)       # (C, C)
-        r = torch.matmul(F, p.T).T         # (B, C)
+        z = z.long()
+
+        # 1. Compute probabilities and log-probabilities
+        logp = self.logsoftmax(logits)     # (B, C) = log p
+        p = logp.exp()                     # (B, C) = p
+
+        # 2. Compute Q as a constant (no gradient flow)
+        # Using a context manager makes the 'constant' intent very clear
+        with torch.no_grad():
+            M = self.M.to(logits.device)
+            Mp = p @ M.T
+            
+            # Add a small epsilon to avoid division by zero
+            Q = p / (Mp + 1e-9)
 
         if self.loss_code == "cross_entropy":
-            rz = r.gather(1, z.view(-1, 1)).squeeze(1)
-            rz = rz.clamp_min(self.eps)
-            loss_per_sample = -torch.log(rz)
+            # 1. Gather the probability for the true class z
+            pz = p.gather(1, z.view(-1, 1)).squeeze(1)
+            pz = pz.clamp_min(self.eps)
+            
+            # 2. Gather the weight Q for the true class z (matching shapes)
+            Qz = Q.gather(1, z.view(-1, 1)).squeeze(1)
+            
+            # Now both Qz and torch.log(pz) are shape (B,)
+            loss_per_sample = -Qz * torch.log(pz)
+            
         else:
-            S = scoring_matrix(r, self.loss_code)
+            # For other scoring rules, compute the full matrix S first
+            # Note: I used 'p' here as 'r' was likely a typo in your snippet
+            S = Q * scoring_matrix(p, self.loss_code)
+            
+            # Then gather the specific loss for target class z
             loss_per_sample = S.gather(1, z.view(-1, 1)).squeeze(1)
 
         if self.reduction == "mean":
             return loss_per_sample.mean()
         elif self.reduction == "sum":
             return loss_per_sample.sum()
-        else:
-            return loss_per_sample
+        return loss_per_sample
 
 
 class PiCOLoss(nn.Module):
